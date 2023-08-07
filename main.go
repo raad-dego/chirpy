@@ -3,14 +3,14 @@ package main
 import (
 	"log"
 	"net/http"
-
+	"github.com/raad-dego/chirpy/api"
 	"github.com/go-chi/chi"
 )
 
 func main() {
 	const filepathRoot = "."
 	const port = "8080"
-	apiCfg := &apiConfig{
+	apiCfg := &ApiConfig{
 		fileserverHits: 0,
 	}
 
@@ -29,7 +29,7 @@ func main() {
 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
 	r.Handle("/app/*", fsHandler)
 	r.Handle("/app", fsHandler)
-	r.Get("/healthz", healthHandler)
+	r.Get("/healthz", HealthHandler)
 	r.Get("/metrics", apiCfg.metricsHandler)
 
 	corsR := MiddlewareCors(r)
