@@ -3,15 +3,16 @@ package main
 import (
 	"log"
 	"net/http"
-	"github.com/raad-dego/chirpy/api"
+
 	"github.com/go-chi/chi"
+	"github.com/raad-dego/chirpy/chirpyApi"
 )
 
 func main() {
 	const filepathRoot = "."
 	const port = "8080"
-	apiCfg := &ApiConfig{
-		fileserverHits: 0,
+	apiCfg := &chirpyApi.ApiConfig{
+		FileserverHits: 0,
 	}
 
 	// ServeMux
@@ -24,13 +25,20 @@ func main() {
 	// 	Addr:    ":" + port,
 	// 	Handler: corsMux,
 	// }
-	// Chi router
+
 	r := chi.NewRouter()
-	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
+	fsHandler := apiCfg.MiddlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
 	r.Handle("/app/*", fsHandler)
 	r.Handle("/app", fsHandler)
-	r.Get("/healthz", HealthHandler)
-	r.Get("/metrics", apiCfg.metricsHandler)
+
+	apiRouter := chi.NewRouter()
+	apiRouter.Get("/healthz", chirpyApi.HealthHandler)
+	r.Mount("/api", apiRouter)
+	adminRouter := chi.NewRouter()
+	adminRouter.Get("/metrics", http.HandlerFunc(apiCfg.AdminMetrics().ServeHTTP))
+	r.Mount("/admin", adminRouter)
+
+	
 
 	corsR := MiddlewareCors(r)
 
