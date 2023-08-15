@@ -4,47 +4,56 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/go-chi/chi"
-	"github.com/raad-dego/chirpy/chirpyApi"
+	"github.com/go-chi/chi/v5"
+	"github.com/joho/godotenv"
+	"github.com/raad-dego/chirpy/internal/database"
 )
 
+type apiConfig struct {
+	fileserverHits int
+	DB             *database.DB
+}
+
 func main() {
+	godotenv.Load()
 	const filepathRoot = "."
 	const port = "8080"
-	apiCfg := &chirpyApi.ApiConfig{
-		FileserverHits: 0,
+
+	db, err := database.NewDB("database.json")
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	// ServeMux
-	// mux := http.NewServeMux()
-	// mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
-	// mux.HandleFunc("/healthz", healthHandler)
-	// mux.HandleFunc("/metrics", apiCfg.metricsHandler)
-	// corsMux := MiddlewareCors(mux)
-	// srv := &http.Server{
-	// 	Addr:    ":" + port,
-	// 	Handler: corsMux,
-	// }
+	apiCfg := apiConfig{
+		fileserverHits: 0,
+		DB:             db,
+	}
 
-	r := chi.NewRouter()
-	fsHandler := apiCfg.MiddlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
-	r.Handle("/app/*", fsHandler)
-	r.Handle("/app", fsHandler)
+	router := chi.NewRouter()
+	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
+	router.Handle("/app", fsHandler)
+	router.Handle("/app/*", fsHandler)
 
 	apiRouter := chi.NewRouter()
-	apiRouter.Get("/healthz", chirpyApi.HealthHandler)
-	r.Mount("/api", apiRouter)
+	apiRouter.Get("/healthz", handlerReadiness)
+	apiRouter.Post("/chirps", apiCfg.handlerChirpsCreate)
+	apiRouter.Get("/chirps", apiCfg.handlerChirpsRetrieve)
+	apiRouter.Get("/chirps/{chirpID}", apiCfg.handlerGetChirp)
+	apiRouter.Post("/users", apiCfg.handlerUsersCreate)
+	// apiRouter.Put("/users", apiCfg.handlerJWT)
+	apiRouter.Post("/login", apiCfg.handlerLogIn)
+	// apiRouter.Get("/users", apiCfg.handlerUsersRetrieve)
+	router.Mount("/api", apiRouter)
+
 	adminRouter := chi.NewRouter()
-	adminRouter.Get("/metrics", http.HandlerFunc(apiCfg.AdminMetrics().ServeHTTP))
-	r.Mount("/admin", adminRouter)
+	adminRouter.Get("/metrics", apiCfg.handlerMetrics)
+	router.Mount("/admin", adminRouter)
 
-	
-
-	corsR := MiddlewareCors(r)
+	corsMux := middlewareCors(router)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
-		Handler: corsR,
+		Handler: corsMux,
 	}
 
 	log.Printf("Serving files from %s on port: %s\n", filepathRoot, port)
