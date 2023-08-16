@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
@@ -12,6 +13,7 @@ import (
 type apiConfig struct {
 	fileserverHits int
 	DB             *database.DB
+	jwtSecret      string
 }
 
 func main() {
@@ -24,9 +26,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET environment variable is not set")
+	}
+
 	apiCfg := apiConfig{
 		fileserverHits: 0,
 		DB:             db,
+		jwtSecret:      jwtSecret,
 	}
 
 	router := chi.NewRouter()
@@ -36,12 +44,15 @@ func main() {
 
 	apiRouter := chi.NewRouter()
 	apiRouter.Get("/healthz", handlerReadiness)
+
 	apiRouter.Post("/chirps", apiCfg.handlerChirpsCreate)
 	apiRouter.Get("/chirps", apiCfg.handlerChirpsRetrieve)
 	apiRouter.Get("/chirps/{chirpID}", apiCfg.handlerGetChirp)
+
 	apiRouter.Post("/users", apiCfg.handlerUsersCreate)
-	// apiRouter.Put("/users", apiCfg.handlerJWT)
-	apiRouter.Post("/login", apiCfg.handlerLogIn)
+	apiRouter.Put("/users", apiCfg.handlerAuthentication)
+
+	apiRouter.Post("/login", apiCfg.handleLogin)
 	// apiRouter.Get("/users", apiCfg.handlerUsersRetrieve)
 	router.Mount("/api", apiRouter)
 
