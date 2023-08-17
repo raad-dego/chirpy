@@ -8,7 +8,7 @@ import (
 	"github.com/raad-dego/chirpy/internal/auth"
 )
 
-func (cfg *apiConfig) handlerAuthentication(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Password string `json:"password"`
 		Email    string `json:"email"`

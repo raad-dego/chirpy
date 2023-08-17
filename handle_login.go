@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/raad-dego/chirpy/internal/auth"
 	"github.com/raad-dego/chirpy/internal/database"
@@ -16,15 +15,15 @@ var (
 	ErrSignatureInvalid = errors.New("signature is invalid")
 )
 
-func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Password         string `json:"password"`
-		Email            string `json:"email"`
-		ExpiresInSeconds int    `json:"expires_in_seconds"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 	type response struct {
 		User
-		Token string `json:"token"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -58,13 +57,14 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if params.ExpiresInSeconds > 86400 || params.ExpiresInSeconds == 0 {
-		params.ExpiresInSeconds = 60 * 60 * 24 // 24 hours in seconds
-	}
-
-	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Duration(params.ExpiresInSeconds)*time.Second)
+	accessToken, err := auth.MakeJWT(user.ID, cfg.jwtSecret, auth.TokenTypeAccess)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't create JWT")
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create access JWT")
+		return
+	}
+	refreshToken, err := auth.MakeJWT(user.ID, cfg.jwtSecret, auth.TokenTypeRefresh)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create refresh JWT")
 		return
 	}
 
@@ -73,6 +73,7 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 			ID:    user.ID,
 			Email: user.Email,
 		},
-		Token: token,
+		Token:        accessToken,
+		RefreshToken: refreshToken,
 	})
 }
