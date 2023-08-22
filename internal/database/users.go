@@ -4,6 +4,7 @@ type User struct {
 	ID             int    `json:"id"`
 	Email          string `json:"email"`
 	HashedPassword string `json:"hashed_password"`
+	RedVerified    bool   `json:"is_chirpy_red"`
 	// Password is hashed and stored in the DB.
 }
 
@@ -81,3 +82,24 @@ func (db *DB) UpdateUser(id int, email, hashedPassword string) (User, error) {
 	return user, nil
 }
 
+func (db *DB) MarkUserAsRedVerified(id int) error {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return err
+	}
+
+	user, ok := dbStructure.Users[id]
+	if !ok {
+		return ErrNotExist
+	}
+
+	user.RedVerified = true
+	dbStructure.Users[id] = user
+
+	err = db.writeDB(dbStructure)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

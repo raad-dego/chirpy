@@ -20,7 +20,6 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 	if ok != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't check session")
 		return
-
 	}
 	if isRevoked {
 		respondWithError(w, http.StatusUnauthorized, "Token has been revoked")

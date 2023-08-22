@@ -56,6 +56,7 @@ func (cfg *apiConfig) handlerUserUpdate(w http.ResponseWriter, r *http.Request) 
 		User: User{
 			ID:    user.ID,
 			Email: user.Email,
+			RedVerified: user.RedVerified,
 		},
 	})
 }
